@@ -159,6 +159,10 @@ class TelegramAdapter:
         except Exception:
             logger.exception("OpenRouter request failed")
             answer = "الان به هوش مصنوعیم وصل نمی‌شم؛ یه کم دیگه امتحان کن."
+        if not isinstance(answer, str) or not answer.strip() or answer.strip().casefold() in {"none", "null"}:
+            answer = "این بار مدل جواب متنی نداد؛ یه بار دیگه بپرس."
+        else:
+            answer = answer.strip()
         self.db.add_message("telegram", chat_id, user_id, "assistant", answer)
         self.last_reply_at[chat_id] = time.monotonic()
         for start in range(0, len(answer), 4000):
