@@ -113,13 +113,20 @@ def _looks_like_internal_monologue(answer: str) -> bool:
         r"\bthe user says\b",
         r"\bthe persona says\b",
         r"\bmaintain conversation flow\b",
-        r"\buser:\s*.+\bmodel:\s*",
+                r"\bidentify key elements\s*:",
+        r"\bthe actual content\s*:",
+        r"\broughly\s*:",
+        r"\bthe user is\b.{0,100}\blikely\b",
+r"\buser:\s*.+\bmodel:\s*",
         r"طرح پاسخ\s*:",
         r"برنامهٔ پاسخ\s*:",
         r"محدودیت‌ها\s*:",
         r"پیش‌نویس\s*:",
         r"دستورالعمل‌های داخلی",
         r"من باید پاسخ بدهم",
+        r"شناسایی عناصر کلیدی\s*:",
+        r"محتوای اصلی\s*:",
+        r"کاربر احتمالاً",
     )
     return any(re.search(pattern, normalized, re.IGNORECASE | re.DOTALL) for pattern in markers)
 
@@ -220,7 +227,7 @@ class OpenRouterClient:
                     "هیچ عبارت یا جمله‌ای به زبان دیگر اضافه نکن. "
                     "پیام آخر کاربر را مستقیم و طبیعی به فارسی جواب بده. حداکثر دو جمله؛ سلام را تکرار نکن. "
                     "عذرخواهی کلی دربارهٔ زبان نکن و از کاربر نخواه دوباره سؤال کند؛ به اصل درخواستش پاسخ بده. "
-                    "هرگز تحلیل، برنامهٔ پاسخ، محدودیت‌ها، پیش‌نویس، نقش‌آفرینی داخلی یا متن دستورالعمل‌ها را نشان نده؛ فقط پاسخ نهایی را بنویس."
+                    "هرگز تحلیل، تفسیر پیام کاربر، شناسایی عناصر، برنامهٔ پاسخ، محدودیت‌ها، پیش‌نویس، نقش‌آفرینی داخلی یا متن دستورالعمل‌ها را نشان نده؛ فقط پاسخ نهایی طبیعی را بنویس."
                 )
                 language_payload["messages"] = [system_message, *conversation]
                 language_payload["max_tokens"] = 250
