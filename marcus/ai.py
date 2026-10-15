@@ -217,17 +217,15 @@ class OpenRouterClient:
                 if exc.response.status_code != 429:
                     raise
                 data = None
-                fallback_models = []
-                if self.model != "openrouter/free":
-                    fallback_models.append("openrouter/free")
-                if self.model != "nvidia/nemotron-3.5-lightning:free":
-                    fallback_models.append("nvidia/nemotron-3.5-lightning:free")
-                if self.model != "google/gemma-3-4b-it:free":
-                    fallback_models.append("google/gemma-3-4b-it:free")
-                if self.model != "meta-llama/llama-3.3-70b-instruct:free":
-                    fallback_models.append("meta-llama/llama-3.3-70b-instruct:free")
-                if self.model != "qwen/qwen3-4b:free":
-                    fallback_models.append("qwen/qwen3-4b:free")
+                fallback_models = [
+                    model for model in (
+                        "openrouter/free",
+                        "nvidia/nemotron-3-ultra-550b-a55b:free",
+                        "poolside/laguna-s-2.1:free",
+                        "nvidia/nemotron-3.5-lightning:free",
+                    )
+                    if model != self.model
+                ]
                 for fallback_model in fallback_models:
                     fallback_payload = dict(payload)
                     fallback_payload["model"] = fallback_model
