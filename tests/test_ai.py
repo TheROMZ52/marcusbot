@@ -139,10 +139,10 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
             answer = await bot.reply([{"role": "user", "content": "سلام"}])
         self.assertEqual(answer, "سلام، خوبم!")
         self.assertEqual(len(client.payloads), 2)
-        self.assertEqual(client.payloads[0]["max_tokens"], 1400)
-        self.assertEqual(client.payloads[0]["reasoning"]["max_tokens"], 128)
-        self.assertEqual(client.payloads[1]["max_tokens"], 1800)
-        self.assertEqual(client.payloads[1]["reasoning"]["effort"], "low")
+        self.assertEqual(client.payloads[0]["max_tokens"], 350)
+        self.assertEqual(client.payloads[0]["reasoning"]["max_tokens"], 32)
+        self.assertEqual(client.payloads[1]["max_tokens"], 400)
+        self.assertEqual(client.payloads[1]["reasoning"]["effort"], "minimal")
 
     async def test_empty_response_never_returns_none_or_reasoning(self):
         empty = {
