@@ -30,6 +30,21 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(self.db.memories(linked)[0][1], "اسم گربه‌ام پشمالو است")
         self.assertFalse(self.db.redeem_link_code("rubika", "r-200", "Other", code))
 
+    def test_forgetme_removes_linked_identity_data(self):
+        identity = self.db.ensure_identity("telegram", "100", "Alice")
+        self.db.remember(identity, "یک خاطره")
+        code = self.db.create_link_code(identity)
+        self.assertTrue(self.db.redeem_link_code("rubika", "r-100", "Alice", code))
+        self.db.add_message("telegram", "tg-group", "100", "user", "سلام")
+        self.db.add_message("rubika", "rb-group", "r-100", "user", "درود")
+        deleted = self.db.forget_user("telegram", "100")
+        self.assertEqual(deleted, 2)
+        self.assertEqual(self.db.memories(identity), [])
+        self.assertEqual(self.db.history("telegram", "tg-group", 10), [])
+        self.assertEqual(self.db.history("rubika", "rb-group", 10), [])
+        new_identity = self.db.ensure_identity("rubika", "r-100", "Alice")
+        self.assertNotEqual(new_identity, identity)
+
     def test_chat_history_is_separated_by_platform_and_chat(self):
         self.db.add_message("telegram", "group-1", "100", "user", "سلام")
         self.db.add_message("rubika", "group-1", "100", "user", "درود")
