@@ -169,7 +169,7 @@ class OpenRouterClient:
             "reasoning": {"max_tokens": 32, "exclude": True},
         }
 
-        async with httpx.AsyncClient(timeout=45) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(25.0, connect=8.0)) as client:
             data = await self._post(client, payload)
             answer = _extract_content(data)
             if answer and not _needs_persian_retry(answer, conversation):
