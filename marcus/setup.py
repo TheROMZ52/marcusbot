@@ -24,7 +24,11 @@ MODELS = {
 def run_first_setup() -> None:
     load_dotenv(ENV_PATH)
     current = {key: os.getenv(key, "").strip() for key in FIELDS}
-    missing = [key for key, value in current.items() if not value]
+    platform_configured = bool(current["TELEGRAM_BOT_TOKEN"] or current["RUBIKA_BOT_TOKEN"])
+    missing = [
+        key for key, value in current.items()
+        if not value and (key == "OPENROUTER_API_KEY" or not platform_configured)
+    ]
     model_missing = not os.getenv("OPENROUTER_MODEL", "").strip()
 
     if not missing and not model_missing:
