@@ -83,7 +83,7 @@ class RubikaAdapter:
             return
         if command == "/forgetme":
             deleted = self.db.forget_user("rubika", sender)
-            await message.reply(f"خاطرات این هویت و {deleted} پیام تاریخچهٔ قابل‌شناسایی پاک شد.")
+            await message.reply(f"خاطرات هویت پیوندخورده و {deleted} پیام تاریخچه از حساب‌های پیوندخورده پاک شد.")
             return
 
         is_private = str(value(message, "chat_type", "type", default="")).lower() in {"private", "user"}
