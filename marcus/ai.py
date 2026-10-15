@@ -22,6 +22,7 @@ SYSTEM_PROMPT = """تو مارکوس هستی؛ رفیق باهوش و خودم�
 
 EMPTY_RESPONSE = "این بار مدل جواب متنی نداد؛ یه بار دیگه بپرس."
 ERROR_RESPONSE = "الان به هوش مصنوعیم وصل نمی‌شم؛ یه کم دیگه امتحان کن."
+RATE_LIMIT_RESPONSE = "الان درخواست‌های هوش مصنوعی شلوغ شده؛ یکی دو دقیقه دیگه دوباره پیام بده."
 LANGUAGE_RESPONSE = "ببخشید داداش، این بار زبانم قاطی شد. یه بار دیگه بپرس تا فارسی جواب بدم."
 
 _INVALID_ASSISTANT_OUTPUTS = {
@@ -210,7 +211,23 @@ class OpenRouterClient:
         }
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(25.0, connect=8.0)) as client:
-            data = await self._post(client, payload)
+            try:
+                data = await self._post(client, payload)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 429:
+                    raise
+                logger.warning("OpenRouter rate limit reached (model=%s); trying the free router fallback", self.model)
+                if self.model == "openrouter/free":
+                    return RATE_LIMIT_RESPONSE
+                fallback_payload = dict(payload)
+                fallback_payload["model"] = "openrouter/free"
+                try:
+                    data = await self._post(client, fallback_payload)
+                except httpx.HTTPStatusError as fallback_exc:
+                    if fallback_exc.response.status_code == 429:
+                        logger.warning("OpenRouter free router is also rate limited")
+                        return RATE_LIMIT_RESPONSE
+                    raise
             answer = _extract_content(data)
             if answer and not _needs_persian_retry(answer, conversation) and not _is_unhelpful_language_apology(answer) and not _looks_like_internal_monologue(answer):
                 return answer
