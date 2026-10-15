@@ -183,5 +183,17 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(client.payloads), 3)
         self.assertIn("درخواست اصلی کاربر را انجام بده", client.payloads[2]["messages"][0]["content"])
 
+    async def test_persian_apology_is_retried_instead_of_sent(self):
+        responses = [
+            FakeResponse({"choices": [{"message": {"content": "ببخشید داداش، این بار زبانم قاطی شد. یه بار دیگه بپرس تا فارسی جواب بدم."}}]}),
+            FakeResponse({"choices": [{"message": {"content": "چشم داداش، از این به بعد فارسی و خودمونی جواب می‌دم."}}]}),
+        ]
+        client = FakeAsyncClient(responses)
+        bot = OpenRouterClient("test-key", "custom-model", "مارکوس")
+        with patch("marcus.ai.httpx.AsyncClient", return_value=client):
+            answer = await bot.reply([{"role": "user", "content": "همیشه فارسی صحبت کن و خودمونی باش؛ اینارو یادت باشه."}])
+        self.assertEqual(answer, "چشم داداش، از این به بعد فارسی و خودمونی جواب می‌دم.")
+        self.assertEqual(len(client.payloads), 2)
+
 if __name__ == "__main__":
     unittest.main()
