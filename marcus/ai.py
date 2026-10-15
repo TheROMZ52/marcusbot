@@ -206,6 +206,21 @@ class OpenRouterClient:
                 retry_answer = _extract_content(retry_data)
                 if retry_answer and not _needs_persian_retry(retry_answer, conversation) and not _is_unhelpful_language_apology(retry_answer):
                     return retry_answer
+                if retry_answer and _is_unhelpful_language_apology(retry_answer):
+                    repair_payload = dict(language_payload)
+                    repair_system = dict(language_payload["messages"][0])
+                    repair_system["content"] += (
+                        "\\nاین پاسخ قبلی اشتباه بود چون فقط عذرخواهی کرد. حالا درخواست اصلی کاربر را انجام بده؛ "
+                        "از عذرخواهی، توضیح دربارهٔ زبان یا درخواست تکرار سؤال خودداری کن."
+                    )
+                    repair_payload["messages"] = [repair_system, *conversation]
+                    repair_payload["max_tokens"] = 180
+                    repair_data = await self._post(client, repair_payload)
+                    repair_answer = _extract_content(repair_data)
+                    if repair_answer and not _needs_persian_retry(repair_answer, conversation) and not _is_unhelpful_language_apology(repair_answer):
+                        return repair_answer
+                    if repair_answer and any("\\u0600" <= char <= "\\u06ff" and char.isalpha() for char in repair_answer) and not _is_unhelpful_language_apology(repair_answer):
+                        retry_answer = repair_answer
                 if self.model.endswith(":free") and self.model != "openrouter/free":
                     fallback_payload = dict(language_payload)
                     fallback_payload["model"] = "openrouter/free"
