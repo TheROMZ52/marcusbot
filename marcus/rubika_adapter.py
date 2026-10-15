@@ -51,6 +51,12 @@ class RubikaAdapter:
         command = parts[0].split("@", 1)[0].lower()
         arg = parts[1].strip() if len(parts) > 1 else ""
 
+        is_private = chat_id.startswith("b0")
+        sensitive_commands = {"/link", "/remember", "/memories", "/forget", "/linkcode", "/forgetme"}
+        if command in sensitive_commands and not is_private:
+            await update.reply("برای حفظ حریم خصوصی، این دستور رو توی چت خصوصی با خودم بفرست.")
+            return
+
         if command == "/link":
             if not arg:
                 await update.reply("روش استفاده: /link کد")
@@ -99,7 +105,6 @@ class RubikaAdapter:
             await update.reply(f"خاطرات هویت پیوندخورده و {deleted} پیام تاریخچه از حساب‌های پیوندخورده پاک شد.")
             return
 
-        is_private = chat_id.startswith("b0")
         addressed = is_private or bool(re.match(r"(?i)^\s*(مارکوس|marcus)(\b|[,،:!؟ ]|$)", text))
         if (not addressed and self.settings.proactive_replies and self.interesting_message(text)
                 and random.random() < self.settings.proactive_probability):
@@ -109,6 +114,9 @@ class RubikaAdapter:
         if not addressed:
             return
         clean = re.sub(r"(?i)^\s*(مارکوس|marcus)\b[\s,،:!؟-]*", "", text).strip() or "یه چیزی بگو"
+        if re.search(r"یادت\s*(?:باشه|بمونه|نره)|(?:اینا|اینو|اینارو|این‌ها رو)\s*یادت", clean):
+            if not re.search(r"(?i)(password|passcode|api[_ -]?key|token|رمز عبور|رمز کارت|کلید api)", clean):
+                self.db.remember(identity_id, clean)
         self.db.add_message("rubika", chat_id, sender, "user", f"{display}: {clean}")
         history = self.db.history("rubika", chat_id, self.settings.max_history_messages)
         memories = [content for _, content in self.db.memories(identity_id, 15)]
