@@ -30,9 +30,9 @@ def load_settings() -> Settings:
     except ValueError:
         history_limit = 12
     try:
-        proactive_probability = max(0.0, min(0.12, float(os.getenv("PROACTIVE_PROBABILITY", "0.025"))))
+        proactive_probability = max(0.0, min(0.12, float(os.getenv("PROACTIVE_PROBABILITY", "0.08"))))
     except ValueError:
-        proactive_probability = 0.025
+        proactive_probability = 0.08
     try:
         cooldown = max(30, min(3600, int(os.getenv("REPLY_COOLDOWN_SECONDS", "180"))))
     except ValueError:
