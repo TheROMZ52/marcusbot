@@ -105,19 +105,19 @@ def _is_unhelpful_language_apology(answer: str) -> bool:
 def _looks_like_internal_monologue(answer: str) -> bool:
     normalized = answer.casefold()
     markers = (
-        r"\\bi'll simulate\\b",
-        r"\\bresponse plan\\s*:",
-        r"\\bconstraints\\s*:",
-        r"\\bdraft\\s*:",
-        r"\\bi should respond\\b",
-        r"\\bthe user says\\b",
-        r"\\bthe persona says\\b",
-        r"\\bmaintain conversation flow\\b",
-        r"\\buser:\\s*.+\\bmodel:\\s*",
-        r"طرح پاسخ\\s*:",
-        r"برنامهٔ پاسخ\\s*:",
-        r"محدودیت‌ها\\s*:",
-        r"پیش‌نویس\\s*:",
+        r"\bi'll simulate\\b",
+        r"\bresponse plan\\s*:",
+        r"\bconstraints\\s*:",
+        r"\bdraft\\s*:",
+        r"\bi should respond\\b",
+        r"\bthe user says\\b",
+        r"\bthe persona says\\b",
+        r"\bmaintain conversation flow\\b",
+        r"\buser:\\s*.+\\bmodel:\\s*",
+        r"طرح پاسخ\s*:",
+        r"برنامهٔ پاسخ\s*:",
+        r"محدودیت‌ها\s*:",
+        r"پیش‌نویس\s*:",
         r"دستورالعمل‌های داخلی",
         r"من باید پاسخ بدهم",
     )
@@ -230,7 +230,7 @@ class OpenRouterClient:
                 retry_answer = _extract_content(retry_data)
                 if retry_answer and not _needs_persian_retry(retry_answer, conversation) and not _is_unhelpful_language_apology(retry_answer) and not _looks_like_internal_monologue(retry_answer):
                     return retry_answer
-                if retry_answer and _is_unhelpful_language_apology(retry_answer):
+                if retry_answer and (_is_unhelpful_language_apology(retry_answer) or _looks_like_internal_monologue(retry_answer)):
                     repair_payload = dict(language_payload)
                     repair_system = dict(language_payload["messages"][0])
                     repair_system["content"] += (
