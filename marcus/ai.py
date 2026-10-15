@@ -213,8 +213,6 @@ class OpenRouterClient:
         async with httpx.AsyncClient(timeout=httpx.Timeout(25.0, connect=8.0)) as client:
             try:
                 data = await self._post(client, payload)
-            try:
-                data = await self._post(client, payload)
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code != 429:
                     raise
