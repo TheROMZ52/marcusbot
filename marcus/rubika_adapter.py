@@ -1,5 +1,7 @@
 import logging
+import random
 import re
+import time
 from .ai import OpenRouterClient
 from .config import Settings
 from .db import Database
@@ -20,6 +22,12 @@ class RubikaAdapter:
         self.settings = settings
         self.db = db
         self.ai = ai
+        self.last_reply_at: dict[str, float] = {}
+
+    def interesting_message(self, text: str) -> bool:
+        lowered = text.lower()
+        cues = ("؟", "?", "نظرتون", "به نظرت", "کسی میدونه", "کسی می‌دونه", "چطوره", "چرا", "چطور", "بهترین", "کدوم بهتره", "پیشنهاد", "راهنمایی")
+        return len(text.strip()) >= 12 and any(cue in lowered for cue in cues)
 
     async def handle(self, client, update):
         message = value(update, "new_message", "updated_message", default=None)
@@ -106,6 +114,7 @@ class RubikaAdapter:
             answer = "الان به هوش مصنوعیم وصل نمی‌شم؛ یه کم دیگه امتحان کن."
         self.db.add_message("rubika", chat_id, sender, "assistant", answer)
         await update.reply(answer[:3500])
+        self.last_reply_at[chat_id] = time.monotonic()
 
     def run(self) -> None:
         if not self.settings.rubika_bot_token:
