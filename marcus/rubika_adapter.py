@@ -117,8 +117,13 @@ class RubikaAdapter:
         except Exception:
             logger.exception("OpenRouter request failed for Rubika")
             answer = "الان به هوش مصنوعیم وصل نمی‌شم؛ یه کم دیگه امتحان کن."
+        if not isinstance(answer, str) or not answer.strip() or answer.strip().casefold() in {"none", "null"}:
+            answer = "این بار مدل جواب متنی نداد؛ یه بار دیگه بپرس."
+        else:
+            answer = answer.strip()
         self.db.add_message("rubika", chat_id, sender, "assistant", answer)
-        await update.reply(answer[:3500])
+        for start in range(0, len(answer), 3500):
+            await update.reply(answer[start:start + 3500])
         self.last_reply_at[chat_id] = time.monotonic()
 
     def run(self) -> None:
