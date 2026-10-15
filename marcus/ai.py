@@ -233,7 +233,7 @@ class OpenRouterClient:
                     repair_payload = dict(language_payload)
                     repair_system = dict(language_payload["messages"][0])
                     repair_system["content"] += (
-                        "\\nاین پاسخ قبلی اشتباه بود چون فقط عذرخواهی کرد. حالا درخواست اصلی کاربر را انجام بده؛ "
+                        "\nپاسخ قبلی اشتباه بود. حالا فقط جواب نهایی و طبیعی به درخواست اصلی کاربر را بنویس؛ "
                         "از عذرخواهی، توضیح دربارهٔ زبان یا درخواست تکرار سؤال خودداری کن."
                     )
                     repair_payload["messages"] = [repair_system, *conversation]
