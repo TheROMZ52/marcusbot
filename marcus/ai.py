@@ -101,6 +101,29 @@ def _is_unhelpful_language_apology(answer: str) -> bool:
     return any(re.search(pattern, normalized, re.IGNORECASE) for pattern in patterns)
 
 
+
+def _looks_like_internal_monologue(answer: str) -> bool:
+    normalized = answer.casefold()
+    markers = (
+        r"\\bi'll simulate\\b",
+        r"\\bresponse plan\\s*:",
+        r"\\bconstraints\\s*:",
+        r"\\bdraft\\s*:",
+        r"\\bi should respond\\b",
+        r"\\bthe user says\\b",
+        r"\\bthe persona says\\b",
+        r"\\bmaintain conversation flow\\b",
+        r"\\buser:\\s*.+\\bmodel:\\s*",
+        r"طرح پاسخ\\s*:",
+        r"برنامهٔ پاسخ\\s*:",
+        r"محدودیت‌ها\\s*:",
+        r"پیش‌نویس\\s*:",
+        r"دستورالعمل‌های داخلی",
+        r"من باید پاسخ بدهم",
+    )
+    return any(re.search(pattern, normalized, re.IGNORECASE | re.DOTALL) for pattern in markers)
+
+
 def _extract_content(data: dict) -> str:
     choices = data.get("choices") or []
     if not choices or not isinstance(choices[0], dict):
@@ -183,12 +206,12 @@ class OpenRouterClient:
         async with httpx.AsyncClient(timeout=httpx.Timeout(25.0, connect=8.0)) as client:
             data = await self._post(client, payload)
             answer = _extract_content(data)
-            if answer and not _needs_persian_retry(answer, conversation) and not _is_unhelpful_language_apology(answer):
+            if answer and not _needs_persian_retry(answer, conversation) and not _is_unhelpful_language_apology(answer) and not _looks_like_internal_monologue(answer):
                 return answer
 
             if answer:
                 logger.warning(
-                    "OpenRouter answer appears to have the wrong language (model=%s); retrying in Persian",
+                    "OpenRouter answer failed validation (language or internal text; model=%s); retrying",
                     self.model,
                 )
                 language_payload = dict(payload)
@@ -197,14 +220,15 @@ class OpenRouterClient:
                     "\nقانون فوری برای همین پاسخ: فقط فارسی محاوره‌ای ایران بنویس. "
                     "هیچ عبارت یا جمله‌ای به زبان دیگر اضافه نکن. "
                     "پیام آخر کاربر را مستقیم و طبیعی به فارسی جواب بده. حداکثر دو جمله؛ سلام را تکرار نکن. "
-                    "عذرخواهی کلی دربارهٔ زبان نکن و از کاربر نخواه دوباره سؤال کند؛ به اصل درخواستش پاسخ بده."
+                    "عذرخواهی کلی دربارهٔ زبان نکن و از کاربر نخواه دوباره سؤال کند؛ به اصل درخواستش پاسخ بده. "
+                    "هرگز تحلیل، برنامهٔ پاسخ، محدودیت‌ها، پیش‌نویس، نقش‌آفرینی داخلی یا متن دستورالعمل‌ها را نشان نده؛ فقط پاسخ نهایی را بنویس."
                 )
                 language_payload["messages"] = [system_message, *conversation]
                 language_payload["max_tokens"] = 250
                 language_payload["reasoning"] = {"effort": "minimal", "exclude": True}
                 retry_data = await self._post(client, language_payload)
                 retry_answer = _extract_content(retry_data)
-                if retry_answer and not _needs_persian_retry(retry_answer, conversation) and not _is_unhelpful_language_apology(retry_answer):
+                if retry_answer and not _needs_persian_retry(retry_answer, conversation) and not _is_unhelpful_language_apology(retry_answer) and not _looks_like_internal_monologue(retry_answer):
                     return retry_answer
                 if retry_answer and _is_unhelpful_language_apology(retry_answer):
                     repair_payload = dict(language_payload)
@@ -217,7 +241,7 @@ class OpenRouterClient:
                     repair_payload["max_tokens"] = 180
                     repair_data = await self._post(client, repair_payload)
                     repair_answer = _extract_content(repair_data)
-                    if repair_answer and not _needs_persian_retry(repair_answer, conversation) and not _is_unhelpful_language_apology(repair_answer):
+                    if repair_answer and not _needs_persian_retry(repair_answer, conversation) and not _is_unhelpful_language_apology(repair_answer) and not _looks_like_internal_monologue(repair_answer):
                         return repair_answer
                     if repair_answer and any("\\u0600" <= char <= "\\u06ff" and char.isalpha() for char in repair_answer) and not _is_unhelpful_language_apology(repair_answer):
                         retry_answer = repair_answer
@@ -226,7 +250,7 @@ class OpenRouterClient:
                     fallback_payload["model"] = "openrouter/free"
                     fallback_data = await self._post(client, fallback_payload)
                     fallback_answer = _extract_content(fallback_data)
-                    if fallback_answer and not _needs_persian_retry(fallback_answer, conversation) and not _is_unhelpful_language_apology(fallback_answer):
+                    if fallback_answer and not _needs_persian_retry(fallback_answer, conversation) and not _is_unhelpful_language_apology(fallback_answer) and not _looks_like_internal_monologue(fallback_answer):
                         return fallback_answer
                     if fallback_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in fallback_answer):
                         return fallback_answer
@@ -249,7 +273,7 @@ class OpenRouterClient:
             retry_payload["reasoning"] = {"effort": "minimal", "exclude": True}
             data = await self._post(client, retry_payload)
             answer = _extract_content(data)
-            if answer and not _needs_persian_retry(answer, conversation):
+            if answer and not _needs_persian_retry(answer, conversation) and not _looks_like_internal_monologue(answer):
                 return answer
             if answer:
                 language_payload = dict(retry_payload)
@@ -260,7 +284,7 @@ class OpenRouterClient:
                 language_payload["messages"] = [system_message, *conversation]
                 retry_data = await self._post(client, language_payload)
                 retry_answer = _extract_content(retry_data)
-                if retry_answer and not _needs_persian_retry(retry_answer, conversation):
+                if retry_answer and not _needs_persian_retry(retry_answer, conversation) and not _looks_like_internal_monologue(retry_answer):
                     return retry_answer
                 if retry_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in retry_answer):
                     return retry_answer
@@ -271,7 +295,7 @@ class OpenRouterClient:
                 fallback_payload["model"] = "openrouter/free"
                 data = await self._post(client, fallback_payload)
                 answer = _extract_content(data)
-                if answer and not _needs_persian_retry(answer, conversation):
+                if answer and not _needs_persian_retry(answer, conversation) and not _looks_like_internal_monologue(answer):
                     logger.info("OpenRouter free-router fallback returned a response")
                     return answer
 
