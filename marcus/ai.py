@@ -242,7 +242,7 @@ class OpenRouterClient:
                     repair_answer = _extract_content(repair_data)
                     if repair_answer and not _needs_persian_retry(repair_answer, conversation) and not _is_unhelpful_language_apology(repair_answer) and not _looks_like_internal_monologue(repair_answer):
                         return repair_answer
-                    if repair_answer and any("\\u0600" <= char <= "\\u06ff" and char.isalpha() for char in repair_answer) and not _is_unhelpful_language_apology(repair_answer):
+                    if repair_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in repair_answer) and not _is_unhelpful_language_apology(repair_answer) and not _looks_like_internal_monologue(repair_answer):
                         retry_answer = repair_answer
                 if self.model.endswith(":free") and self.model != "openrouter/free":
                     fallback_payload = dict(language_payload)
@@ -251,11 +251,11 @@ class OpenRouterClient:
                     fallback_answer = _extract_content(fallback_data)
                     if fallback_answer and not _needs_persian_retry(fallback_answer, conversation) and not _is_unhelpful_language_apology(fallback_answer) and not _looks_like_internal_monologue(fallback_answer):
                         return fallback_answer
-                    if fallback_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in fallback_answer):
+                    if fallback_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in fallback_answer) and not _looks_like_internal_monologue(fallback_answer):
                         return fallback_answer
-                if retry_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in retry_answer):
+                if retry_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in retry_answer) and not _looks_like_internal_monologue(retry_answer):
                     return retry_answer
-                if any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in answer):
+                if any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in answer) and not _looks_like_internal_monologue(answer):
                     return answer
                 return LANGUAGE_RESPONSE
 
@@ -285,7 +285,7 @@ class OpenRouterClient:
                 retry_answer = _extract_content(retry_data)
                 if retry_answer and not _needs_persian_retry(retry_answer, conversation) and not _looks_like_internal_monologue(retry_answer):
                     return retry_answer
-                if retry_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in retry_answer):
+                if retry_answer and any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in retry_answer) and not _looks_like_internal_monologue(retry_answer):
                     return retry_answer
                 return LANGUAGE_RESPONSE
 
