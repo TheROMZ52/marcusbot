@@ -7,6 +7,7 @@ from marcus.ai import (
     _clean_history,
     _extract_content,
     _is_unhelpful_language_apology,
+    _looks_like_internal_monologue,
     _needs_persian_retry,
 )
 
@@ -160,6 +161,36 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("None", answer)
         self.assertNotIn("hidden thought", answer)
 
+
+
+    def test_internal_planning_text_is_detected(self):
+        leaked = (
+            "درود مهبد! می‌تهم تو گروه. یک sec...\\n"
+            "- I'll simulate adding the user to a group chat context.\\n"
+            "- Constraints:\\n"
+            "- Response plan:\\n"
+            "- Draft:"
+        )
+        self.assertTrue(_looks_like_internal_monologue(leaked))
+        self.assertFalse(_looks_like_internal_monologue("درود داداش، بزن بریم تو گروه!"))
+
+    async def test_internal_planning_text_is_retried_before_sending(self):
+        leaked = (
+            "درود مهبد! می‌تهم تو گروه. یک sec...\\n"
+            "- I'll simulate adding the user to a group chat context.\\n"
+            "- Response plan:"
+        )
+        responses = [
+            FakeResponse({"choices": [{"message": {"content": leaked}}]}),
+            FakeResponse({"choices": [{"message": {"content": "آره داداش، بریم تو گروه! من آماده‌ام."}}]}),
+        ]
+        client = FakeAsyncClient(responses)
+        bot = OpenRouterClient("test-key", "custom-model", "مارکوس")
+        with patch("marcus.ai.httpx.AsyncClient", return_value=client):
+            answer = await bot.reply([{"role": "user", "content": "بیا بریم تو گروه"}])
+        self.assertEqual(answer, "آره داداش، بریم تو گروه! من آماده‌ام.")
+        self.assertEqual(len(client.payloads), 2)
+        self.assertIn("فقط پاسخ نهایی را بنویس", client.payloads[1]["messages"][0]["content"])
 
     def test_generic_language_apology_is_not_accepted_as_an_answer(self):
         self.assertTrue(
