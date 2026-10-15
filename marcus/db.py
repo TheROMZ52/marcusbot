@@ -155,13 +155,26 @@ class Database:
                 "SELECT identity_id FROM accounts WHERE platform=? AND user_id=?",
                 (platform, user_id),
             ).fetchone()
-            cursor = conn.execute(
-                "DELETE FROM messages WHERE platform=? AND user_id=?",
-                (platform, user_id),
-            )
-            deleted = cursor.rowcount
-            if row:
-                conn.execute("DELETE FROM memories WHERE identity_id=?", (row[0],))
-                conn.execute("DELETE FROM link_codes WHERE identity_id=?", (row[0],))
-                conn.execute("DELETE FROM accounts WHERE platform=? AND user_id=?", (platform, user_id))
-            return deleted
+            if not row:
+                cursor = conn.execute(
+                    "DELETE FROM messages WHERE platform=? AND user_id=?",
+                    (platform, user_id),
+                )
+                return cursor.rowcount
+            identity_id = row[0]
+            linked_accounts = conn.execute(
+                "SELECT platform,user_id FROM accounts WHERE identity_id=?",
+                (identity_id,),
+            ).fetchall()
+            deleted_messages = 0
+            for linked_platform, linked_user_id in linked_accounts:
+                cursor = conn.execute(
+                    "DELETE FROM messages WHERE platform=? AND user_id=?",
+                    (linked_platform, linked_user_id),
+                )
+                deleted_messages += cursor.rowcount
+            conn.execute("DELETE FROM memories WHERE identity_id=?", (identity_id,))
+            conn.execute("DELETE FROM link_codes WHERE identity_id=?", (identity_id,))
+            conn.execute("DELETE FROM accounts WHERE identity_id=?", (identity_id,))
+            conn.execute("DELETE FROM identities WHERE id=?", (identity_id,))
+            return deleted_messages
