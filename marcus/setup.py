@@ -10,19 +10,26 @@ FIELDS = {
     "TELEGRAM_BOT_TOKEN": ("توکن ربات تلگرام؛ برای رد کردن خالی بگذار", False),
     "RUBIKA_BOT_TOKEN": ("توکن ربات روبیکا؛ برای رد کردن خالی بگذار", False),
 }
+MODELS = {
+    "1": ("google/gemini-2.5-flash-lite", "سریع و کم‌هزینه؛ پیشنهاد من"),
+    "2": ("openai/gpt-4o-mini", "گفت‌وگوی عمومی متعادل"),
+    "3": ("qwen/qwen3-30b-a3b-instruct-2507", "مدل باز و اقتصادی"),
+    "4": ("custom", "وارد کردن شناسهٔ مدل دیگر از OpenRouter"),
+}
 
 
 def run_first_setup() -> None:
     load_dotenv(ENV_PATH)
     current = {key: os.getenv(key, "").strip() for key in FIELDS}
     missing = [key for key, value in current.items() if not value]
+    model_missing = not os.getenv("OPENROUTER_MODEL", "").strip()
 
-    if not missing:
+    if not missing and not model_missing:
         return
 
     print("\nمارکوس — راه‌اندازی اولیه")
-    print("مقادیر واردشده در فایل محلی .env ذخیره می‌شوند و نمایش داده نخواهند شد.")
-    print("برای فعال کردن هر پلتفرم، توکنش را وارد کن؛ پلتفرم‌های دیگر را می‌توانی رد کنی.\n")
+    print("توکن‌ها در ترمینال به‌صورت مخفی دریافت می‌شوند و در فایل محلی .env ذخیره خواهند شد.")
+    print("برای فعال کردن هر پلتفرم، توکنش را وارد کن؛ پلتفرم دیگر را می‌توانی رد کنی.\n")
 
     updates = {}
     for key in missing:
@@ -42,6 +49,19 @@ def run_first_setup() -> None:
     if not merged["TELEGRAM_BOT_TOKEN"] and not merged["RUBIKA_BOT_TOKEN"]:
         print("برای ادامه باید حداقل توکن تلگرام یا روبیکا را وارد کنی.")
         raise SystemExit(1)
+
+    if model_missing:
+        print("\nمدل هوش مصنوعی را انتخاب کن:")
+        for number, (model_id, description) in MODELS.items():
+            print(f"{number}. {model_id} — {description}")
+        choice = input("انتخاب [1]: ").strip() or "1"
+        if choice not in MODELS:
+            print("انتخاب نامعتبر است؛ مدل پیشنهادی انتخاب شد.")
+            choice = "1"
+        model_id = MODELS[choice][0]
+        if model_id == "custom":
+            model_id = input("شناسهٔ مدل در OpenRouter: ").strip() or MODELS["1"][0]
+        updates["OPENROUTER_MODEL"] = model_id
 
     existing_lines = ENV_PATH.read_text(encoding="utf-8").splitlines() if ENV_PATH.exists() else []
     keys_written = set()
@@ -65,4 +85,4 @@ def run_first_setup() -> None:
     except OSError:
         pass
     load_dotenv(ENV_PATH, override=True)
-    print("\nتنظیمات ذخیره شد. مارکوس آمادهٔ اجراست.\n")
+    print("\nتنظیمات ذخیره شد. در اجراهای بعدی دوباره پرسیده نمی‌شوند.\n")
