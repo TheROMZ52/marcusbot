@@ -6,6 +6,7 @@ from marcus.ai import (
     OpenRouterClient,
     _clean_history,
     _extract_content,
+    _needs_persian_retry,
 )
 
 
@@ -81,6 +82,17 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
                 {"role": "user", "content": "سلام"},
                 {"role": "assistant", "content": "خوبم، تو چطوری؟"},
             ],
+        )
+
+    def test_mixed_dutch_output_is_retried_but_requested_language_is_allowed(self):
+        answer = "سلام! چطوری؟ Alles goed؟"
+        messages = [{"role": "user", "content": "سلام، چه خبر؟"}]
+        self.assertTrue(_needs_persian_retry(answer, messages))
+        self.assertFalse(
+            _needs_persian_retry(
+                answer,
+                [{"role": "user", "content": "به هلندی جواب بده: سلام"}],
+            )
         )
 
     async def test_empty_response_retries_and_returns_visible_text(self):
