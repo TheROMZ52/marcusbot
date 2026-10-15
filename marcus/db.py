@@ -71,12 +71,17 @@ class Database:
             )
             return identity_id
 
-    def add_message(self, platform: str, chat_id: str, user_id: str, role: str, content: str) -> None:
+    def add_message(self, platform: str, chat_id: str, user_id: str, role: str, content: str) -> int:
         with self._connect() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 "INSERT INTO messages(platform,chat_id,user_id,role,content) VALUES(?,?,?,?,?)",
                 (platform, chat_id, user_id, role, content[:8000]),
             )
+            return int(cursor.lastrowid)
+
+    def delete_message(self, message_id: int) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM messages WHERE id=?", (message_id,))
 
     def history(self, platform: str, chat_id: str, limit: int) -> list[dict[str, str]]:
         with self._connect() as conn:
