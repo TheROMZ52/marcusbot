@@ -17,6 +17,14 @@ class TelegramAdapter:
         self.ai = ai
         self.last_reply_at: dict[str, float] = {}
 
+    async def private_only(self, update: Update) -> bool:
+        chat = update.effective_chat
+        if chat and chat.type != "private":
+            if update.effective_message:
+                await update.effective_message.reply_text("برای حفظ حریم خصوصی، این دستور رو توی چت خصوصی با خودم بفرست.")
+            return False
+        return True
+
     def identity(self, update: Update) -> tuple[str, str, str]:
         user = update.effective_user
         if not user:
@@ -53,6 +61,8 @@ class TelegramAdapter:
 
     async def remember(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
+        if not await self.private_only(update):
+            return
             return
         _, _, identity_id = self.identity(update)
         content = " ".join(context.args).strip()
@@ -67,6 +77,8 @@ class TelegramAdapter:
 
     async def memories_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
+        if not await self.private_only(update):
+            return
             return
         _, _, identity_id = self.identity(update)
         rows = self.db.memories(identity_id)
@@ -77,6 +89,8 @@ class TelegramAdapter:
 
     async def forget(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
+        if not await self.private_only(update):
+            return
             return
         _, _, identity_id = self.identity(update)
         if not context.args or not context.args[0].isdigit():
@@ -87,6 +101,8 @@ class TelegramAdapter:
 
     async def linkcode(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
+        if not await self.private_only(update):
+            return
             return
         _, _, identity_id = self.identity(update)
         code = self.db.create_link_code(identity_id)
@@ -96,6 +112,8 @@ class TelegramAdapter:
 
     async def link(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message or not update.effective_user:
+        if not await self.private_only(update):
+            return
             return
         if not context.args:
             await update.effective_message.reply_text("روش استفاده: /link کد")
@@ -110,6 +128,8 @@ class TelegramAdapter:
 
     async def forgetme(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message or not update.effective_user:
+        if not await self.private_only(update):
+            return
             return
         user_id = str(update.effective_user.id)
         deleted = self.db.forget_user("telegram", user_id)
@@ -123,7 +143,10 @@ class TelegramAdapter:
         chat = update.effective_chat
         if not message or not user or not chat or not message.text or user.is_bot:
             return
-        me = await context.bot.get_me()
+        me = context.bot_data.get("marcus_me")
+        if me is None:
+            me = await context.bot.get_me()
+            context.bot_data["marcus_me"] = me
         text = message.text.strip()
         addressed = chat.type == "private"
         if chat.type != "private":
@@ -151,6 +174,9 @@ class TelegramAdapter:
 
         user_id, display, identity_id = self.identity(update)
         chat_id = str(chat.id)
+        if re.search(r"یادت\s*(?:باشه|بمونه|نره)|(?:اینا|اینو|اینارو|این‌ها رو)\s*یادت", clean_text):
+            if not re.search(r"(?i)(password|passcode|api[_ -]?key|token|رمز عبور|رمز کارت|کلید api)", clean_text):
+                self.db.remember(identity_id, clean_text)
         self.db.add_message("telegram", chat_id, user_id, "user", f"{display}: {clean_text}")
         history = self.db.history("telegram", chat_id, self.settings.max_history_messages)
         memories = [content for _, content in self.db.memories(identity_id, 15)]
