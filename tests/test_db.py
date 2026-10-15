@@ -51,5 +51,12 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(self.db.history("telegram", "group-1", 10)[0]["content"], "سلام")
         self.assertEqual(self.db.history("rubika", "group-1", 10)[0]["content"], "درود")
 
+    def test_duplicate_memories_are_not_saved_twice(self):
+        identity = self.db.ensure_identity("telegram", "100", "Alice")
+        first_id = self.db.remember(identity, "همیشه فارسی و خودمونی جواب بده")
+        second_id = self.db.remember(identity, "همیشه فارسی و خودمونی جواب بده")
+        self.assertEqual(first_id, second_id)
+        self.assertEqual(len(self.db.memories(identity)), 1)
+
 if __name__ == "__main__":
     unittest.main()
