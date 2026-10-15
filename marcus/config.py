@@ -1,8 +1,10 @@
 import os
 from dataclasses import dataclass
+
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -16,6 +18,7 @@ class Settings:
     proactive_replies: bool
     proactive_probability: float
     reply_cooldown_seconds: int
+
 
 def load_settings() -> Settings:
     telegram_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
@@ -41,7 +44,7 @@ def load_settings() -> Settings:
         telegram_bot_token=telegram_token,
         rubika_bot_token=rubika_token,
         openrouter_api_key=api_key,
-        openrouter_model=os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini").strip() or "openai/gpt-4o-mini",
+        openrouter_model=os.getenv("OPENROUTER_MODEL", "openrouter/free").strip() or "openrouter/free",
         database_path=os.getenv("DATABASE_PATH", "marcus.sqlite3").strip() or "marcus.sqlite3",
         max_history_messages=history_limit,
         bot_name=os.getenv("BOT_NAME", "مارکوس").strip() or "مارکوس",
