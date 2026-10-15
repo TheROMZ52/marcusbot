@@ -114,7 +114,7 @@ class TelegramAdapter:
         user_id = str(update.effective_user.id)
         deleted = self.db.forget_user("telegram", user_id)
         await update.effective_message.reply_text(
-            f"خاطرات این هویت و {deleted} پیام تاریخچهٔ حساب تلگرام پاک شد. تاریخچهٔ چت‌های دیگر ممکن است هنوز وجود داشته باشد."
+            f"خاطرات هویت پیوندخورده و {deleted} پیام تاریخچه از حساب‌های پیوندخورده پاک شد."
         )
 
     async def on_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
