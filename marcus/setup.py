@@ -11,10 +11,13 @@ FIELDS = {
     "RUBIKA_BOT_TOKEN": ("توکن ربات روبیکا؛ برای رد کردن خالی بگذار", False),
 }
 MODELS = {
-    "1": ("google/gemini-2.5-flash-lite", "سریع و کم‌هزینه؛ پیشنهاد من"),
-    "2": ("openai/gpt-4o-mini", "گفت‌وگوی عمومی متعادل"),
-    "3": ("qwen/qwen3-30b-a3b-instruct-2507", "مدل باز و اقتصادی"),
-    "4": ("custom", "وارد کردن شناسهٔ مدل دیگر از OpenRouter"),
+    "1": ("openrouter/free", "پیشنهاد من؛ انتخاب خودکار از مدل‌های رایگان"),
+    "2": ("nvidia/nemotron-3.5-lightning:free", "پاسخ‌گویی سریع"),
+    "3": ("nvidia/nemotron-3-super-120b-a12b:free", "گفت‌وگوی عمومی و استدلال"),
+    "4": ("google/gemma-4-31b-it:free", "مدل عمومی چندمنظوره"),
+    "5": ("qwen/qwen3.8-27b:free", "مدل عمومی Qwen"),
+    "6": ("cohere/north-mini-code:free", "بیشتر مناسب کدنویسی"),
+    "7": ("custom", "وارد کردن شناسهٔ مدل رایگان دیگر از OpenRouter"),
 }
 
 
@@ -51,7 +54,7 @@ def run_first_setup() -> None:
         raise SystemExit(1)
 
     if model_missing:
-        print("\nمدل هوش مصنوعی را انتخاب کن:")
+        print("\nمدل رایگان هوش مصنوعی را انتخاب کن:")
         for number, (model_id, description) in MODELS.items():
             print(f"{number}. {model_id} — {description}")
         choice = input("انتخاب [1]: ").strip() or "1"
@@ -60,7 +63,7 @@ def run_first_setup() -> None:
             choice = "1"
         model_id = MODELS[choice][0]
         if model_id == "custom":
-            model_id = input("شناسهٔ مدل در OpenRouter: ").strip() or MODELS["1"][0]
+            model_id = input("شناسهٔ مدل رایگان در OpenRouter: ").strip() or MODELS["1"][0]
         updates["OPENROUTER_MODEL"] = model_id
 
     existing_lines = ENV_PATH.read_text(encoding="utf-8").splitlines() if ENV_PATH.exists() else []
