@@ -100,7 +100,12 @@ class RubikaAdapter:
             return
 
         is_private = chat_id.startswith("b0")
-        addressed = is_private or bool(re.match(r"(?i)^\s*(مارکوس|marcus)(\b|[,،:!؟ ]|$)", text))
+        addressed = is_private or bool(re.match(r"(?i)^\\s*(مارکوس|marcus)(\\b|[,،:!؟ ]|$)", text))
+        if (not addressed and self.settings.proactive_replies and self.interesting_message(text)
+                and random.random() < self.settings.proactive_probability):
+            now = time.monotonic()
+            if now - self.last_reply_at.get(chat_id, 0) >= self.settings.reply_cooldown_seconds:
+                addressed = True
         if not addressed:
             return
         clean = re.sub(r"(?i)^\s*(مارکوس|marcus)\b[\s,،:!؟-]*", "", text).strip() or "یه چیزی بگو"
