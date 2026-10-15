@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch
 
+import httpx
+
 from marcus.ai import (
     EMPTY_RESPONSE,
     OpenRouterClient,
@@ -23,7 +25,11 @@ class FakeResponse:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise AssertionError(f"Unexpected HTTP status: {self.status_code}")
+            request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+            response = httpx.Response(self.status_code, request=request, text=self.text)
+            raise httpx.HTTPStatusError(
+                f"HTTP {self.status_code}", request=request, response=response
+            )
 
 
 class FakeAsyncClient:
@@ -119,6 +125,37 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(answer, "سلام داداش، خوبم! تو چه خبر؟")
         self.assertEqual(len(client.payloads), 2)
         self.assertIn("فقط فارسی محاوره‌ای ایران بنویس", client.payloads[1]["messages"][0]["content"])
+
+    async def test_rate_limit_falls_back_to_openrouter_free(self):
+        responses = [
+            FakeResponse({}, status_code=429, text="rate limit"),
+            FakeResponse({
+                "choices": [{
+                    "message": {"role": "assistant", "content": "سلام داداش، خوبی؟"},
+                    "finish_reason": "stop",
+                }]
+            }),
+        ]
+        client = FakeAsyncClient(responses)
+        bot = OpenRouterClient("test-key", "nvidia/nemotron-3.5-lightning:free", "مارکوس")
+        with patch("marcus.ai.httpx.AsyncClient", return_value=client):
+            answer = await bot.reply([{"role": "user", "content": "سلام"}])
+        self.assertEqual(answer, "سلام داداش، خوبی؟")
+        self.assertEqual(client.payloads[0]["model"], "nvidia/nemotron-3.5-lightning:free")
+        self.assertEqual(client.payloads[1]["model"], "openrouter/free")
+
+    async def test_rate_limit_returns_friendly_message_when_free_router_is_limited(self):
+        from marcus.ai import RATE_LIMIT_RESPONSE
+
+        client = FakeAsyncClient([
+            FakeResponse({}, status_code=429, text="rate limit"),
+            FakeResponse({}, status_code=429, text="rate limit"),
+        ])
+        bot = OpenRouterClient("test-key", "nvidia/nemotron-3.5-lightning:free", "مارکوس")
+        with patch("marcus.ai.httpx.AsyncClient", return_value=client):
+            answer = await bot.reply([{"role": "user", "content": "سلام"}])
+        self.assertEqual(answer, RATE_LIMIT_RESPONSE)
+        self.assertEqual(len(client.payloads), 2)
 
     async def test_empty_response_retries_and_returns_visible_text(self):
         responses = [
