@@ -150,12 +150,15 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
         client = FakeAsyncClient([
             FakeResponse({}, status_code=429, text="rate limit"),
             FakeResponse({}, status_code=429, text="rate limit"),
+            FakeResponse({}, status_code=429, text="rate limit"),
+            FakeResponse({}, status_code=429, text="rate limit"),
+            FakeResponse({}, status_code=429, text="rate limit"),
         ])
         bot = OpenRouterClient("test-key", "nvidia/nemotron-3.5-lightning:free", "مارکوس")
         with patch("marcus.ai.httpx.AsyncClient", return_value=client):
             answer = await bot.reply([{"role": "user", "content": "سلام"}])
         self.assertEqual(answer, RATE_LIMIT_RESPONSE)
-        self.assertEqual(len(client.payloads), 2)
+        self.assertEqual(len(client.payloads), 5)
 
     async def test_empty_response_retries_and_returns_visible_text(self):
         responses = [
