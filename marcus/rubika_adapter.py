@@ -39,11 +39,19 @@ class RubikaAdapter:
         if str(value(message, "sender_type", default="")) == "Bot":
             return
         display = str(value(message, "sender_name", "name", "first_name", default=sender))
-        identity_id = self.db.ensure_identity("rubika", sender, display)
-
         parts = text.split(maxsplit=1)
         command = parts[0].split("@", 1)[0].lower()
         arg = parts[1].strip() if len(parts) > 1 else ""
+
+        if command == "/link":
+            if not arg:
+                await update.reply("روش استفاده: /link کد")
+                return
+            ok = self.db.redeem_link_code("rubika", sender, display, arg)
+            await update.reply("حساب‌ها پیوند خوردند؛ خاطرات ثبت‌شده مشترک می‌شوند." if ok else "کد نامعتبر، منقضی یا ناسازگار است.")
+            return
+
+        identity_id = self.db.ensure_identity("rubika", sender, display)
 
         if command in {"/start", "/help"}:
             await update.reply(
@@ -77,13 +85,6 @@ class RubikaAdapter:
         if command == "/linkcode":
             code = self.db.create_link_code(identity_id)
             await update.reply(f"کد پیوند: {code}\nتا ۱۰ دقیقه در حساب خودت در پلتفرم دیگر دستور /link {code} را بفرست.")
-            return
-        if command == "/link":
-            if not arg:
-                await update.reply("روش استفاده: /link کد")
-                return
-            ok = self.db.redeem_link_code("rubika", sender, display, arg)
-            await update.reply("حساب‌ها پیوند خوردند؛ خاطرات ثبت‌شده مشترک می‌شوند." if ok else "کد نامعتبر، منقضی یا ناسازگار است.")
             return
         if command == "/forgetme":
             deleted = self.db.forget_user("rubika", sender)
