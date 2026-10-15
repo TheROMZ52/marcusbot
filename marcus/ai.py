@@ -51,7 +51,10 @@ def _clean_history(messages: list[dict[str, str]]) -> list[dict[str, str]]:
             or normalized.startswith("الان به هوش مصنوعیم وصل نمی‌شم")
         ):
             continue
-        cleaned.append({"role": role, "content": content})
+        if cleaned and cleaned[-1]["role"] == role:
+            cleaned[-1]["content"] += "\n" + content
+        else:
+            cleaned.append({"role": role, "content": content})
     return cleaned
 
 
