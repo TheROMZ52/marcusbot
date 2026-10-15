@@ -168,7 +168,7 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
             "2. Identify Key Elements:\n"
             '- The user is using a format with 𝐌𝐀𝐇𝐁𝐎𝐃: prefix, likely roleplay.\n'
             '- The actual content: "گلابی من که مهبدم از اول بودم"\n'
-            '- Roughly: "My beauty, I\\'ve been fragrant since the beginning"\n'
+            '- Roughly: "My beauty, I have been fragrant since the beginning"\n'
             "- Response plan:\n"
             "- Draft:"
         )
