@@ -213,21 +213,39 @@ class OpenRouterClient:
         async with httpx.AsyncClient(timeout=httpx.Timeout(25.0, connect=8.0)) as client:
             try:
                 data = await self._post(client, payload)
+            try:
+                data = await self._post(client, payload)
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code != 429:
                     raise
-                logger.warning("OpenRouter rate limit reached (model=%s); trying the free router fallback", self.model)
-                if self.model == "openrouter/free":
+                data = None
+                fallback_models = []
+                if self.model != "openrouter/free":
+                    fallback_models.append("openrouter/free")
+                if self.model != "nvidia/nemotron-3.5-lightning:free":
+                    fallback_models.append("nvidia/nemotron-3.5-lightning:free")
+                if self.model != "google/gemma-3-4b-it:free":
+                    fallback_models.append("google/gemma-3-4b-it:free")
+                if self.model != "meta-llama/llama-3.3-70b-instruct:free":
+                    fallback_models.append("meta-llama/llama-3.3-70b-instruct:free")
+                if self.model != "qwen/qwen3-4b:free":
+                    fallback_models.append("qwen/qwen3-4b:free")
+                for fallback_model in fallback_models:
+                    fallback_payload = dict(payload)
+                    fallback_payload["model"] = fallback_model
+                    try:
+                        data = await self._post(client, fallback_payload)
+                        logger.info("OpenRouter fallback succeeded (model=%s)", fallback_model)
+                        break
+                    except httpx.HTTPStatusError as fallback_exc:
+                        if fallback_exc.response.status_code == 429:
+                            logger.warning("OpenRouter fallback rate limited (model=%s)", fallback_model)
+                            continue
+                        logger.warning("OpenRouter fallback failed (model=%s, status=%s)", fallback_model, fallback_exc.response.status_code)
+                        continue
+                if data is None:
+                    logger.warning("All OpenRouter fallback models were rate limited or unavailable")
                     return RATE_LIMIT_RESPONSE
-                fallback_payload = dict(payload)
-                fallback_payload["model"] = "openrouter/free"
-                try:
-                    data = await self._post(client, fallback_payload)
-                except httpx.HTTPStatusError as fallback_exc:
-                    if fallback_exc.response.status_code == 429:
-                        logger.warning("OpenRouter free router is also rate limited")
-                        return RATE_LIMIT_RESPONSE
-                    raise
             answer = _extract_content(data)
             if answer and not _needs_persian_retry(answer, conversation) and not _is_unhelpful_language_apology(answer) and not _looks_like_internal_monologue(answer):
                 return answer
