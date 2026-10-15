@@ -188,6 +188,13 @@ class OpenRouterClient:
                 retry_answer = _extract_content(retry_data)
                 if retry_answer and not _needs_persian_retry(retry_answer, conversation):
                     return retry_answer
+                if self.model.endswith(":free") and self.model != "openrouter/free":
+                    fallback_payload = dict(language_payload)
+                    fallback_payload["model"] = "openrouter/free"
+                    fallback_data = await self._post(client, fallback_payload)
+                    fallback_answer = _extract_content(fallback_data)
+                    if fallback_answer and not _needs_persian_retry(fallback_answer, conversation):
+                        return fallback_answer
                 return LANGUAGE_RESPONSE
 
             choice = (data.get("choices") or [{}])[0]
