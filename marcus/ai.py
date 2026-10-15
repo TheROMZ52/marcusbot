@@ -105,15 +105,15 @@ def _is_unhelpful_language_apology(answer: str) -> bool:
 def _looks_like_internal_monologue(answer: str) -> bool:
     normalized = answer.casefold()
     markers = (
-        r"\bi'll simulate\\b",
-        r"\bresponse plan\\s*:",
-        r"\bconstraints\\s*:",
-        r"\bdraft\\s*:",
-        r"\bi should respond\\b",
-        r"\bthe user says\\b",
-        r"\bthe persona says\\b",
-        r"\bmaintain conversation flow\\b",
-        r"\buser:\\s*.+\\bmodel:\\s*",
+        r"\bi'll simulate\b",
+        r"\bresponse plan\s*:",
+        r"\bconstraints\s*:",
+        r"\bdraft\s*:",
+        r"\bi should respond\b",
+        r"\bthe user says\b",
+        r"\bthe persona says\b",
+        r"\bmaintain conversation flow\b",
+        r"\buser:\s*.+\bmodel:\s*",
         r"طرح پاسخ\s*:",
         r"برنامهٔ پاسخ\s*:",
         r"محدودیت‌ها\s*:",
@@ -122,7 +122,6 @@ def _looks_like_internal_monologue(answer: str) -> bool:
         r"من باید پاسخ بدهم",
     )
     return any(re.search(pattern, normalized, re.IGNORECASE | re.DOTALL) for pattern in markers)
-
 
 def _extract_content(data: dict) -> str:
     choices = data.get("choices") or []
