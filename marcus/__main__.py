@@ -17,7 +17,12 @@ def main() -> None:
     run_first_setup()
     settings = load_settings()
     db = Database(settings.database_path)
-    ai = OpenRouterClient(settings.openrouter_api_key, settings.openrouter_model, settings.bot_name)
+    ai = OpenRouterClient(
+        settings.openrouter_api_key,
+        settings.openrouter_model,
+        settings.bot_name,
+        fallback_models=settings.openrouter_fallback_models or None,
+    )
 
     if settings.rubika_bot_token:
         rubika = RubikaAdapter(settings, db, ai)

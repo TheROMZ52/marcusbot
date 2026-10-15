@@ -12,6 +12,7 @@ class Settings:
     rubika_bot_token: str
     openrouter_api_key: str
     openrouter_model: str
+    openrouter_fallback_models: tuple[str, ...]
     database_path: str
     max_history_messages: int
     bot_name: str
@@ -40,11 +41,14 @@ def load_settings() -> Settings:
         cooldown = max(30, min(3600, int(os.getenv("REPLY_COOLDOWN_SECONDS", "180"))))
     except ValueError:
         cooldown = 180
+    fallback_raw = os.getenv("OPENROUTER_FALLBACK_MODELS", "")
+    fallback_models = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
     return Settings(
         telegram_bot_token=telegram_token,
         rubika_bot_token=rubika_token,
         openrouter_api_key=api_key,
         openrouter_model=os.getenv("OPENROUTER_MODEL", "openrouter/free").strip() or "openrouter/free",
+        openrouter_fallback_models=fallback_models,
         database_path=os.getenv("DATABASE_PATH", "marcus.sqlite3").strip() or "marcus.sqlite3",
         max_history_messages=history_limit,
         bot_name=os.getenv("BOT_NAME", "مارکوس").strip() or "مارکوس",

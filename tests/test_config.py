@@ -39,6 +39,28 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.proactive_probability, 0.12)
         self.assertEqual(settings.reply_cooldown_seconds, 30)
 
+    @patch.dict(
+        os.environ,
+        {
+            "TELEGRAM_BOT_TOKEN": "telegram-test-token",
+            "OPENROUTER_API_KEY": "key-a,key-b",
+            "OPENROUTER_FALLBACK_MODELS": " a/one:free , b/two:free ,, ",
+        },
+        clear=True,
+    )
+    def test_fallback_models_and_multiple_keys_are_parsed(self):
+        settings = load_settings()
+        self.assertEqual(settings.openrouter_fallback_models, ("a/one:free", "b/two:free"))
+        self.assertEqual(settings.openrouter_api_key, "key-a,key-b")
+
+    @patch.dict(
+        os.environ,
+        {"TELEGRAM_BOT_TOKEN": "t", "OPENROUTER_API_KEY": "k"},
+        clear=True,
+    )
+    def test_fallback_models_default_to_empty(self):
+        self.assertEqual(load_settings().openrouter_fallback_models, ())
+
 
 if __name__ == "__main__":
     unittest.main()

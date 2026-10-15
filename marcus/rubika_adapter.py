@@ -2,7 +2,8 @@ import logging
 import random
 import re
 import time
-from .ai import OpenRouterClient
+from .ai import OpenRouterClient, is_failure_reply
+from .chat import ChatLocks, generate_reply
 from .config import Settings
 from .db import Database
 
@@ -23,6 +24,7 @@ class RubikaAdapter:
         self.db = db
         self.ai = ai
         self.last_reply_at: dict[str, float] = {}
+        self.locks = ChatLocks()
 
     def interesting_message(self, text: str) -> bool:
         lowered = text.lower()
@@ -117,22 +119,22 @@ class RubikaAdapter:
         if re.search(r"یادت\s*(?:باشه|بمونه|نره)|(?:اینا|اینو|اینارو|این‌ها رو)\s*یادت", clean):
             if not re.search(r"(?i)(password|passcode|api[_ -]?key|token|رمز عبور|رمز کارت|کلید api)", clean):
                 self.db.remember(identity_id, clean)
-        self.db.add_message("rubika", chat_id, sender, "user", f"{display}: {clean}")
-        history = self.db.history("rubika", chat_id, self.settings.max_history_messages)
         memories = [content for _, content in self.db.memories(identity_id, 15)]
-        try:
-            answer = await self.ai.reply(history, memories)
-        except Exception:
-            logger.exception("OpenRouter request failed for Rubika")
-            answer = "الان به هوش مصنوعیم وصل نمی‌شم؛ یه کم دیگه امتحان کن."
-        if not isinstance(answer, str) or not answer.strip() or answer.strip().casefold() in {"none", "null"}:
-            answer = "این بار مدل جواب متنی نداد؛ یه بار دیگه بپرس."
-        else:
-            answer = answer.strip()
-        self.db.add_message("rubika", chat_id, sender, "assistant", answer)
-        for start in range(0, len(answer), 3500):
-            await update.reply(answer[start:start + 3500])
-        self.last_reply_at[chat_id] = time.monotonic()
+        async with self.locks.get(chat_id):
+            answer = await generate_reply(
+                self.db,
+                self.ai,
+                platform="rubika",
+                chat_id=chat_id,
+                user_id=sender,
+                text=f"{display}: {clean}",
+                memories=memories,
+                history_limit=self.settings.max_history_messages,
+            )
+            for start in range(0, len(answer), 3500):
+                await update.reply(answer[start:start + 3500])
+            if not is_failure_reply(answer):
+                self.last_reply_at[chat_id] = time.monotonic()
 
     def run(self) -> None:
         if not self.settings.rubika_bot_token:

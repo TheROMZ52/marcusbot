@@ -1,10 +1,13 @@
+import asyncio
 import logging
 import random
 import re
 import time
 from telegram import Update
+from telegram.constants import ChatAction
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
-from .ai import OpenRouterClient
+from .ai import OpenRouterClient, is_failure_reply
+from .chat import ChatLocks, generate_reply
 from .config import Settings
 from .db import Database
 
@@ -16,6 +19,7 @@ class TelegramAdapter:
         self.db = db
         self.ai = ai
         self.last_reply_at: dict[str, float] = {}
+        self.locks = ChatLocks()
 
     async def private_only(self, update: Update) -> bool:
         chat = update.effective_chat
@@ -39,6 +43,14 @@ class TelegramAdapter:
                 "کمک می‌کنه", "کمک میکنه", "چطوره", "چرا", "چطور", "بهترین", "کدوم بهتره",
                 "تجربه‌ای", "تجربه ای", "پیشنهاد", "راهنمایی")
         return len(text.strip()) >= 12 and any(cue in lowered for cue in cues)
+
+    async def _keep_typing(self, bot, chat_id: int) -> None:
+        while True:
+            try:
+                await bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+            except Exception:
+                logger.debug("send_chat_action failed", exc_info=True)
+            await asyncio.sleep(4)
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message:
@@ -177,25 +189,29 @@ class TelegramAdapter:
         if re.search(r"یادت\s*(?:باشه|بمونه|نره)|(?:اینا|اینو|اینارو|این‌ها رو)\s*یادت", clean_text):
             if not re.search(r"(?i)(password|passcode|api[_ -]?key|token|رمز عبور|رمز کارت|کلید api)", clean_text):
                 self.db.remember(identity_id, clean_text)
-        self.db.add_message("telegram", chat_id, user_id, "user", f"{display}: {clean_text}")
-        history = self.db.history("telegram", chat_id, self.settings.max_history_messages)
         memories = [content for _, content in self.db.memories(identity_id, 15)]
-        try:
-            answer = await self.ai.reply(history, memories)
-        except Exception:
-            logger.exception("OpenRouter request failed")
-            answer = "الان به هوش مصنوعیم وصل نمی‌شم؛ یه کم دیگه امتحان کن."
-        if not isinstance(answer, str) or not answer.strip() or answer.strip().casefold() in {"none", "null"}:
-            answer = "این بار مدل جواب متنی نداد؛ یه بار دیگه بپرس."
-        else:
-            answer = answer.strip()
-        self.db.add_message("telegram", chat_id, user_id, "assistant", answer)
-        self.last_reply_at[chat_id] = time.monotonic()
-        for start in range(0, len(answer), 4000):
-            await message.reply_text(answer[start:start + 4000])
+        async with self.locks.get(chat_id):
+            typing = asyncio.create_task(self._keep_typing(context.bot, chat.id))
+            try:
+                answer = await generate_reply(
+                    self.db,
+                    self.ai,
+                    platform="telegram",
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    text=f"{display}: {clean_text}",
+                    memories=memories,
+                    history_limit=self.settings.max_history_messages,
+                )
+            finally:
+                typing.cancel()
+            if not is_failure_reply(answer):
+                self.last_reply_at[chat_id] = time.monotonic()
+            for start in range(0, len(answer), 4000):
+                await message.reply_text(answer[start:start + 4000])
 
     def build(self) -> Application:
-        app = Application.builder().token(self.settings.telegram_bot_token).build()
+        app = Application.builder().token(self.settings.telegram_bot_token).concurrent_updates(True).build()
         app.add_handler(CommandHandler("start", self.start))
         app.add_handler(CommandHandler("help", self.help))
         app.add_handler(CommandHandler("remember", self.remember))
