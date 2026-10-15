@@ -61,8 +61,8 @@ class TelegramAdapter:
 
     async def remember(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
-        if not await self.private_only(update):
             return
+        if not await self.private_only(update):
             return
         _, _, identity_id = self.identity(update)
         content = " ".join(context.args).strip()
@@ -77,8 +77,8 @@ class TelegramAdapter:
 
     async def memories_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
-        if not await self.private_only(update):
             return
+        if not await self.private_only(update):
             return
         _, _, identity_id = self.identity(update)
         rows = self.db.memories(identity_id)
@@ -89,8 +89,8 @@ class TelegramAdapter:
 
     async def forget(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
-        if not await self.private_only(update):
             return
+        if not await self.private_only(update):
             return
         _, _, identity_id = self.identity(update)
         if not context.args or not context.args[0].isdigit():
@@ -101,8 +101,8 @@ class TelegramAdapter:
 
     async def linkcode(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
-        if not await self.private_only(update):
             return
+        if not await self.private_only(update):
             return
         _, _, identity_id = self.identity(update)
         code = self.db.create_link_code(identity_id)
@@ -112,8 +112,8 @@ class TelegramAdapter:
 
     async def link(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message or not update.effective_user:
-        if not await self.private_only(update):
             return
+        if not await self.private_only(update):
             return
         if not context.args:
             await update.effective_message.reply_text("روش استفاده: /link کد")
@@ -128,8 +128,8 @@ class TelegramAdapter:
 
     async def forgetme(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message or not update.effective_user:
-        if not await self.private_only(update):
             return
+        if not await self.private_only(update):
             return
         user_id = str(update.effective_user.id)
         deleted = self.db.forget_user("telegram", user_id)
