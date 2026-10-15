@@ -25,6 +25,13 @@ class TelegramAdapter:
         display = user.full_name or user.username or user_id
         return user_id, display, self.db.ensure_identity("telegram", user_id, display)
 
+    def interesting_message(self, text: str) -> bool:
+        lowered = text.lower()
+        cues = ("؟", "?", "نظرتون", "به نظرت", "کسی میدونه", "کسی می‌دونه",
+                "کمک می‌کنه", "کمک میکنه", "چطوره", "چرا", "چطور", "بهترین", "کدوم بهتره",
+                "تجربه‌ای", "تجربه ای", "پیشنهاد", "راهنمایی")
+        return len(text.strip()) >= 12 and any(cue in lowered for cue in cues)
+
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message:
             await update.effective_message.reply_text(
@@ -47,7 +54,7 @@ class TelegramAdapter:
     async def remember(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_message:
             return
-        user_id, display, identity_id = self.identity(update)
+        _, _, identity_id = self.identity(update)
         content = " ".join(context.args).strip()
         if not content:
             await update.effective_message.reply_text("بعد از دستور، چیزی که می‌خوای یادم بمونه رو بنویس.")
@@ -107,7 +114,7 @@ class TelegramAdapter:
         user_id = str(update.effective_user.id)
         deleted = self.db.forget_user("telegram", user_id)
         await update.effective_message.reply_text(
-            f"خاطرات این هویت و {deleted} پیام تاریخچهٔ حساب تلگرام پاک شد. اگر حساب دیگری را پیوند داده بودی، آن حساب را هم بررسی کن."
+            f"خاطرات این هویت و {deleted} پیام تاریخچهٔ حساب تلگرام پاک شد. تاریخچهٔ چت‌های دیگر ممکن است هنوز وجود داشته باشد."
         )
 
     async def on_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -116,7 +123,6 @@ class TelegramAdapter:
         chat = update.effective_chat
         if not message or not user or not chat or not message.text or user.is_bot:
             return
-
         me = await context.bot.get_me()
         text = message.text.strip()
         addressed = chat.type == "private"
@@ -126,10 +132,12 @@ class TelegramAdapter:
                 (mention and mention.lower() in text.lower())
                 or (message.reply_to_message and message.reply_to_message.from_user
                     and message.reply_to_message.from_user.id == me.id)
-                or re.match(r"(?i)^\s*(маркус|маркус|маркус|marcus|маркус|مارکوس)(\b|[,،:!؟ ]|$)", text)
+                or re.match(r"(?i)^\s*(маркус|marcus|مارکوس)(\b|[,،:!؟ ]|$)", text)
             )
-            if not addressed and self.settings.proactive_replies and random.random() < self.settings.proactive_probability:
-                key = f"{chat.id}"
+            if (not addressed and self.settings.proactive_replies
+                    and self.interesting_message(text)
+                    and random.random() < self.settings.proactive_probability):
+                key = str(chat.id)
                 now = time.monotonic()
                 if now - self.last_reply_at.get(key, 0) >= self.settings.reply_cooldown_seconds:
                     addressed = True
@@ -137,22 +145,22 @@ class TelegramAdapter:
             return
 
         clean_text = re.sub(rf"@{re.escape(me.username)}\b", "", text, flags=re.I).strip()
-        clean_text = re.sub(r"(?i)^\s*(مارکوس|marcus)\b[\s,،:!؟-]*", "", clean_text).strip()
+        clean_text = re.sub(r"(?i)^\s*(маркус|marcus|مارکوس)\b[\s,،:!؟-]*", "", clean_text).strip()
         if not clean_text:
             clean_text = "یه چیزی بگو"
 
         user_id, display, identity_id = self.identity(update)
-        platform_chat_id = str(chat.id)
-        self.db.add_message("telegram", platform_chat_id, user_id, "user", f"{display}: {clean_text}")
-        history = self.db.history("telegram", platform_chat_id, self.settings.max_history_messages)
+        chat_id = str(chat.id)
+        self.db.add_message("telegram", chat_id, user_id, "user", f"{display}: {clean_text}")
+        history = self.db.history("telegram", chat_id, self.settings.max_history_messages)
         memories = [content for _, content in self.db.memories(identity_id, 15)]
         try:
             answer = await self.ai.reply(history, memories)
         except Exception:
             logger.exception("OpenRouter request failed")
             answer = "الان به هوش مصنوعیم وصل نمی‌شم؛ یه کم دیگه امتحان کن."
-        self.db.add_message("telegram", platform_chat_id, user_id, "assistant", answer)
-        self.last_reply_at[platform_chat_id] = time.monotonic()
+        self.db.add_message("telegram", chat_id, user_id, "assistant", answer)
+        self.last_reply_at[chat_id] = time.monotonic()
         for start in range(0, len(answer), 4000):
             await message.reply_text(answer[start:start + 4000])
 
