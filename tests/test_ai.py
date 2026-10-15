@@ -1,0 +1,129 @@
+import unittest
+from unittest.mock import patch
+
+from marcus.ai import (
+    EMPTY_RESPONSE,
+    OpenRouterClient,
+    _clean_history,
+    _extract_content,
+)
+
+
+class FakeResponse:
+    def __init__(self, data, status_code=200, text=""):
+        self.data = data
+        self.status_code = status_code
+        self.text = text
+
+    def json(self):
+        return self.data
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise AssertionError(f"Unexpected HTTP status: {self.status_code}")
+
+
+class FakeAsyncClient:
+    def __init__(self, responses, **kwargs):
+        self.responses = list(responses)
+        self.payloads = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        return False
+
+    async def post(self, url, headers=None, json=None):
+        self.payloads.append(json)
+        return self.responses.pop(0)
+
+
+class AIResponseTests(unittest.IsolatedAsyncioTestCase):
+    def test_none_content_is_not_converted_to_string(self):
+        data = {
+            "choices": [
+                {
+                    "message": {"role": "assistant", "content": None, "reasoning": "private reasoning"},
+                    "finish_reason": "length",
+                }
+            ]
+        }
+        self.assertEqual(_extract_content(data), "")
+
+    def test_text_blocks_are_joined(self):
+        data = {
+            "choices": [
+                {
+                    "message": {
+                        "content": [
+                            {"type": "text", "text": "سلام"},
+                            {"type": "text", "text": " رفیق"},
+                        ]
+                    }
+                }
+            ]
+        }
+        self.assertEqual(_extract_content(data), "سلام رفیق")
+
+    def test_invalid_assistant_history_is_filtered(self):
+        messages = [
+            {"role": "user", "content": "سلام"},
+            {"role": "assistant", "content": "None"},
+            {"role": "assistant", "content": "مدل این بار جواب متنی نداد؛ یه بار دیگه بپرس."},
+            {"role": "assistant", "content": "خوبم، تو چطوری؟"},
+            {"role": "system", "content": "unexpected"},
+            {"role": "user", "content": None},
+        ]
+        self.assertEqual(
+            _clean_history(messages),
+            [
+                {"role": "user", "content": "سلام"},
+                {"role": "assistant", "content": "خوبم، تو چطوری؟"},
+            ],
+        )
+
+    async def test_empty_response_retries_and_returns_visible_text(self):
+        responses = [
+            FakeResponse({
+                "choices": [{
+                    "message": {"role": "assistant", "content": None, "reasoning": "hidden thought"},
+                    "finish_reason": "length",
+                }]
+            }),
+            FakeResponse({
+                "choices": [{
+                    "message": {"role": "assistant", "content": "سلام، خوبم!"},
+                    "finish_reason": "stop",
+                }]
+            }),
+        ]
+        client = FakeAsyncClient(responses)
+        bot = OpenRouterClient("test-key", "nvidia/nemotron-3.5-lightning:free", "مارکوس")
+        with patch("marcus.ai.httpx.AsyncClient", return_value=client):
+            answer = await bot.reply([{"role": "user", "content": "سلام"}])
+        self.assertEqual(answer, "سلام، خوبم!")
+        self.assertEqual(len(client.payloads), 2)
+        self.assertEqual(client.payloads[0]["max_tokens"], 1400)
+        self.assertEqual(client.payloads[0]["reasoning"]["max_tokens"], 128)
+        self.assertEqual(client.payloads[1]["max_tokens"], 1800)
+        self.assertEqual(client.payloads[1]["reasoning"]["effort"], "low")
+
+    async def test_empty_response_never_returns_none_or_reasoning(self):
+        empty = {
+            "choices": [{
+                "message": {"role": "assistant", "content": None, "reasoning": "hidden thought"},
+                "finish_reason": "length",
+            }]
+        }
+        client = FakeAsyncClient([FakeResponse(empty), FakeResponse(empty)])
+        bot = OpenRouterClient("test-key", "custom-model", "مارکوس")
+        with patch("marcus.ai.httpx.AsyncClient", return_value=client):
+            answer = await bot.reply([{"role": "user", "content": "سلام"}])
+        self.assertEqual(answer, EMPTY_RESPONSE)
+        self.assertNotIn("None", answer)
+        self.assertNotIn("hidden thought", answer)
+
+
+if __name__ == "__main__":
+    unittest.main()
