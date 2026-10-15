@@ -95,6 +95,29 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
             )
         )
 
+    async def test_mixed_language_reply_is_retried_before_sending(self):
+        responses = [
+            FakeResponse({
+                "choices": [{
+                    "message": {"role": "assistant", "content": "سلام! چطوری؟ Alles goed؟"},
+                    "finish_reason": "stop",
+                }]
+            }),
+            FakeResponse({
+                "choices": [{
+                    "message": {"role": "assistant", "content": "سلام داداش، خوبم! تو چه خبر؟"},
+                    "finish_reason": "stop",
+                }]
+            }),
+        ]
+        client = FakeAsyncClient(responses)
+        bot = OpenRouterClient("test-key", "custom-model", "مارکوس")
+        with patch("marcus.ai.httpx.AsyncClient", return_value=client):
+            answer = await bot.reply([{"role": "user", "content": "سلام، چه خبر؟"}])
+        self.assertEqual(answer, "سلام داداش، خوبم! تو چه خبر؟")
+        self.assertEqual(len(client.payloads), 2)
+        self.assertIn("فقط فارسی محاوره‌ای ایران بنویس", client.payloads[1]["messages"][0]["content"])
+
     async def test_empty_response_retries_and_returns_visible_text(self):
         responses = [
             FakeResponse({
