@@ -88,10 +88,19 @@ class Database:
         return [{"role": role, "content": content} for role, content in rows]
 
     def remember(self, identity_id: str, content: str) -> int:
+        normalized = content.strip()[:500]
+        if not normalized:
+            raise ValueError("خاطره نمی‌تواند خالی باشد.")
         with self._connect() as conn:
+            existing = conn.execute(
+                "SELECT id FROM memories WHERE identity_id=? AND content=? ORDER BY id DESC LIMIT 1",
+                (identity_id, normalized),
+            ).fetchone()
+            if existing:
+                return int(existing[0])
             cursor = conn.execute(
                 "INSERT INTO memories(identity_id,content) VALUES(?,?)",
-                (identity_id, content.strip()[:500]),
+                (identity_id, normalized),
             )
             return int(cursor.lastrowid)
 
