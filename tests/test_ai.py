@@ -163,6 +163,18 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
 
 
 
+    def test_message_interpretation_leak_is_detected(self):
+        leaked = (
+            "2. Identify Key Elements:\n"
+            '- The user is using a format with 𝐌𝐀𝐇𝐁𝐎𝐃: prefix, likely roleplay.\n'
+            '- The actual content: "گلابی من که مهبدم از اول بودم"\n'
+            '- Roughly: "My beauty, I\\'ve been fragrant since the beginning"\n'
+            "- Response plan:\n"
+            "- Draft:"
+        )
+        self.assertTrue(_looks_like_internal_monologue(leaked))
+        self.assertFalse(_looks_like_internal_monologue("گلابی من که مهبدم از اول بودم؟ آره داداش، خودتی!"))
+
     def test_internal_planning_text_is_detected(self):
         leaked = (
             "درود مهبد! می‌تهم تو گروه. یک sec...\\n"
