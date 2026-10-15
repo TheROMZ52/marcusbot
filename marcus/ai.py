@@ -62,7 +62,7 @@ def _needs_persian_retry(answer: str, messages: list[dict[str, str]]) -> bool:
          and isinstance(item.get("content"), str)),
         "",
     )
-    if not re.search(r"[\u0600-\u06FF]", last_user):
+    if not any("\u0600" <= char <= "\u06ff" and char.isalpha() for char in last_user):
         return False
     explicit_language_request = re.search(
         r"(?:جواب بده|پاسخ بده|حرف بزن|بنویس).{0,24}(?:انگلیسی|هلندی|آلمانی|فرانسوی|عربی|روسی)"
@@ -73,8 +73,11 @@ def _needs_persian_retry(answer: str, messages: list[dict[str, str]]) -> bool:
     )
     if explicit_language_request:
         return False
-    persian_count = len(re.findall(r"[\u0600-\u06FF]", answer))
-    latin_count = len(re.findall(r"[A-Za-z]", answer))
+    persian_count = sum(
+        1 for char in answer
+        if "\u0600" <= char <= "\u06ff" and char.isalpha()
+    )
+    latin_count = sum(1 for char in answer if char.isascii() and char.isalpha())
     if persian_count == 0:
         return latin_count >= 5
     total_letters = persian_count + latin_count
