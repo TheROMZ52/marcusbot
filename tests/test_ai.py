@@ -6,6 +6,7 @@ from marcus.ai import (
     OpenRouterClient,
     _clean_history,
     _extract_content,
+    _is_unhelpful_language_apology,
     _needs_persian_retry,
 )
 
@@ -159,6 +160,28 @@ class AIResponseTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("None", answer)
         self.assertNotIn("hidden thought", answer)
 
+
+    def test_generic_language_apology_is_not_accepted_as_an_answer(self):
+        self.assertTrue(
+            _is_unhelpful_language_apology(
+                "ببخشید داداش، این بار زبانم قاطی شد. یه بار دیگه بپرس تا فارسی جواب بدم."
+            )
+        )
+        self.assertFalse(_is_unhelpful_language_apology("حواسم هست داداش، از این به بعد فارسی و خودمونی حرف می‌زنم."))
+
+    async def test_model_retries_when_language_retry_only_apologizes(self):
+        responses = [
+            FakeResponse({"choices": [{"message": {"content": "سلام! Alles goed؟"}}]}),
+            FakeResponse({"choices": [{"message": {"content": "ببخشید داداش، زبانم قاطی شد؛ دوباره بپرس."}}]}),
+            FakeResponse({"choices": [{"message": {"content": "چشم داداش، فارسی و خودمونی حرف می‌زنم و ترجیحاتت رو یادم می‌مونه."}}]}),
+        ]
+        client = FakeAsyncClient(responses)
+        bot = OpenRouterClient("test-key", "custom-model", "مارکوس")
+        with patch("marcus.ai.httpx.AsyncClient", return_value=client):
+            answer = await bot.reply([{"role": "user", "content": "همیشه فارسی صحبت کن و خودمونی باش؛ اینارو یادت باشه."}])
+        self.assertEqual(answer, "چشم داداش، فارسی و خودمونی حرف می‌زنم و ترجیحاتت رو یادم می‌مونه.")
+        self.assertEqual(len(client.payloads), 3)
+        self.assertIn("درخواست اصلی کاربر را انجام بده", client.payloads[2]["messages"][0]["content"])
 
 if __name__ == "__main__":
     unittest.main()
