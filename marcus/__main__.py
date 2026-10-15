@@ -4,18 +4,19 @@ import threading
 from .ai import OpenRouterClient
 from .config import load_settings
 from .db import Database
+from .log_safety import setup_logging
 from .rubika_adapter import RubikaAdapter
 from .setup import run_first_setup
 from .telegram_adapter import TelegramAdapter
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    log_formatter = setup_logging()
     run_first_setup()
     settings = load_settings()
+    log_formatter.add_secrets(
+        settings.telegram_bot_token, settings.rubika_bot_token, settings.openrouter_api_key
+    )
     db = Database(settings.database_path)
     ai = OpenRouterClient(
         settings.openrouter_api_key,
