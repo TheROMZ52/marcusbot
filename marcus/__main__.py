@@ -1,16 +1,20 @@
 import logging
 import threading
+
 from .ai import OpenRouterClient
 from .config import load_settings
 from .db import Database
-from .telegram_adapter import TelegramAdapter
 from .rubika_adapter import RubikaAdapter
+from .setup import run_first_setup
+from .telegram_adapter import TelegramAdapter
+
 
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    run_first_setup()
     settings = load_settings()
     db = Database(settings.database_path)
     ai = OpenRouterClient(settings.openrouter_api_key, settings.openrouter_model, settings.bot_name)
@@ -28,6 +32,7 @@ def main() -> None:
         app = TelegramAdapter(settings, db, ai).build()
         logging.getLogger(__name__).info("Starting Marcus Telegram adapter")
         app.run_polling(allowed_updates=["message"])
+
 
 if __name__ == "__main__":
     main()
