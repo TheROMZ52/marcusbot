@@ -1,6 +1,7 @@
 # MarcusBot
 
 Marcus is the group’s AI buddy: casual Persian, controllable memory, and a habit of actually replying.
+
 [فارسی](README.md) · [English](README.en.md)
 
 MarcusBot is a conversational AI companion for Telegram and Rubika, designed around natural Iranian Persian, user-controlled memory, and OpenRouter model routing. It is written in Python and uses SQLite for persistent data.
